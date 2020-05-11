@@ -52,7 +52,20 @@ public class StateMachineConfig extends StateMachineConfigurerAdapter<PaymentSta
         .and()
                 .withExternal().source(PaymentStatus.NEW) // from "NEW" to "PRE_AUTH_ERROR" on event "PRE_AUTH_DECLINED"
                 .target(PaymentStatus.PRE_AUTH_ERROR)
-                .event(PaymentEvent.PRE_AUTH_DECLINED);
+                .event(PaymentEvent.PRE_AUTH_DECLINED)
+                //preauth to auth
+        .and()
+                .withExternal().source(PaymentStatus.PRE_AUTH)
+                .target(PaymentStatus.PRE_AUTH).action(authAction())
+                .event(PaymentEvent.AUTHORIZE)
+        .and()
+                .withExternal().source(PaymentStatus.PRE_AUTH)
+                .target(PaymentStatus.AUTH)
+                .event(PaymentEvent.AUTH_APPROVED)
+        .and()
+                .withExternal().source(PaymentStatus.PRE_AUTH)
+                .target(PaymentStatus.AUTH_ERROR)
+                .event(PaymentEvent.AUTH_DECLINED);
     }
 
     @Override // add logging to listen state change
@@ -71,7 +84,7 @@ public class StateMachineConfig extends StateMachineConfigurerAdapter<PaymentSta
     // invoked after event PRE_AUTHORIZE happen
     public Action<PaymentStatus, PaymentEvent> preAuthAction() {
         return stateContext -> {
-            log.info("PreAuth was called");
+            log.info("preAuth was called");
             if (new Random().nextInt(10) < 8) {
                 log.info("approved");
                 stateContext.getStateMachine()
@@ -84,6 +97,28 @@ public class StateMachineConfig extends StateMachineConfigurerAdapter<PaymentSta
                 stateContext.getStateMachine()
                         .sendEvent(MessageBuilder
                                 .withPayload(PaymentEvent.PRE_AUTH_DECLINED)
+                                .setHeader(PaymentServiceImpl.PAYMENT_ID_HEADER, stateContext.getMessageHeader(PaymentServiceImpl.PAYMENT_ID_HEADER))
+                                .build());
+            }
+        };
+    }
+
+    // invoked after event AUTHORIZE happen
+    public Action<PaymentStatus, PaymentEvent> authAction() {
+        return stateContext -> {
+            log.info("auth was called");
+            if (new Random().nextInt(10) < 8) {
+                log.info("auth approved");
+                stateContext.getStateMachine()
+                        .sendEvent(MessageBuilder
+                                .withPayload(PaymentEvent.AUTH_APPROVED)
+                                .setHeader(PaymentServiceImpl.PAYMENT_ID_HEADER, stateContext.getMessageHeader(PaymentServiceImpl.PAYMENT_ID_HEADER))
+                                .build());
+            } else {
+                log.info("auth declined, no credit");
+                stateContext.getStateMachine()
+                        .sendEvent(MessageBuilder
+                                .withPayload(PaymentEvent.AUTH_DECLINED)
                                 .setHeader(PaymentServiceImpl.PAYMENT_ID_HEADER, stateContext.getMessageHeader(PaymentServiceImpl.PAYMENT_ID_HEADER))
                                 .build());
             }

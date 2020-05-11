@@ -1,11 +1,15 @@
 package guru.springframework.sfgssm.services;
 
 import guru.springframework.sfgssm.domain.Payment;
+import guru.springframework.sfgssm.domain.PaymentEvent;
+import guru.springframework.sfgssm.domain.PaymentStatus;
 import guru.springframework.sfgssm.repositories.PaymentRepository;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.statemachine.StateMachine;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -43,12 +47,20 @@ class PaymentServiceImplTest {
         System.out.println(preAuthedPayment);
 
     }
-//
-//    @Test
-//    void authorizePayment() {
-//    }
-//
-//    @Test
-//    void declineAuth() {
-//    }
+
+    @Transactional
+    //@Test
+    @RepeatedTest(5)
+    void authorizePayment() {
+        Payment savedPayment = paymentService.newPayment(payment);
+        StateMachine<PaymentStatus, PaymentEvent> preAuthSm = paymentService.preAuth(savedPayment.getId());
+        System.out.println("Result of preAuth: " + preAuthSm.getState().getId());
+        if (preAuthSm.getState().getId() == PaymentStatus.PRE_AUTH) {
+            StateMachine<PaymentStatus, PaymentEvent> authSm = paymentService.authorizePayment(savedPayment.getId());
+            System.out.println("Result of auth: " + authSm.getState().getId());
+        }
+
+    }
+
+
 }
