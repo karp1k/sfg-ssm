@@ -34,22 +34,22 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     public StateMachine<PaymentStatus, PaymentEvent> preAuth(Long paymentId) {
         StateMachine<PaymentStatus, PaymentEvent> sm = build(paymentId);
-        sendEvent(paymentId, sm, PaymentEvent.PRE_AUTHORIZE);
-        return null;
+        sendEvent(paymentId, sm, PaymentEvent.PRE_AUTH_APPROVED);
+        return sm;
     }
 
     @Override
     public StateMachine<PaymentStatus, PaymentEvent> authorizePayment(Long paymentId) {
         StateMachine<PaymentStatus, PaymentEvent> sm = build(paymentId);
         sendEvent(paymentId, sm, PaymentEvent.AUTH_APPROVED);
-        return null;
+        return sm;
     }
 
     @Override
     public StateMachine<PaymentStatus, PaymentEvent> declineAuth(Long paymentId) {
         StateMachine<PaymentStatus, PaymentEvent> sm = build(paymentId);
         sendEvent(paymentId, sm, PaymentEvent.AUTH_DECLINED);
-        return null;
+        return sm;
     }
 
     // restore state from db
