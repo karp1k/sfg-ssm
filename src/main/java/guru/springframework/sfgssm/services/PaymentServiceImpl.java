@@ -21,6 +21,7 @@ public class PaymentServiceImpl implements PaymentService {
 
     public static final String PAYMENT_ID_HEADER  = "payment_id";
 
+    private final PaymentStateChangeInterceptor paymentStateChangeInterceptor;
     private final PaymentRepository repository;
     private final StateMachineFactory<PaymentStatus, PaymentEvent> stateMachineFactory;
 
@@ -59,6 +60,8 @@ public class PaymentServiceImpl implements PaymentService {
         sm.stop();
         // sets to specific state from db
         sm.getStateMachineAccessor().doWithAllRegions(sma -> {
+            // add interceptor
+            sma.addStateMachineInterceptor(paymentStateChangeInterceptor);
             sma.resetStateMachine(new DefaultStateMachineContext<>(payment.getStatus(), null, null, null));
         });
         sm.start();
