@@ -2,8 +2,12 @@ package guru.springframework.sfgssm.config;
 
 import guru.springframework.sfgssm.domain.PaymentEvent;
 import guru.springframework.sfgssm.domain.PaymentStatus;
+import guru.springframework.sfgssm.services.PaymentService;
+import guru.springframework.sfgssm.services.PaymentServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.messaging.support.MessageBuilder;
+import org.springframework.statemachine.action.Action;
 import org.springframework.statemachine.config.EnableStateMachineFactory;
 import org.springframework.statemachine.config.StateMachineConfigurerAdapter;
 import org.springframework.statemachine.config.builders.StateMachineConfigurationConfigurer;
@@ -14,6 +18,7 @@ import org.springframework.statemachine.listener.StateMachineListenerAdapter;
 import org.springframework.statemachine.state.State;
 
 import java.util.EnumSet;
+import java.util.Random;
 
 /**
  * StateMachineConfigureAdapter and EnumStateMachineConfigureAdapter - no difference if states and events are enums
@@ -38,7 +43,7 @@ public class StateMachineConfig extends StateMachineConfigurerAdapter<PaymentSta
     public void configure(StateMachineTransitionConfigurer<PaymentStatus, PaymentEvent> transitions) throws Exception {
         transitions.withExternal()
                 .source(PaymentStatus.NEW) // from "NEW" state to "NEW" on event "PRE_AUTHORIZE"
-                .target(PaymentStatus.NEW)
+                .target(PaymentStatus.NEW).action(preAuthAction())
                 .event(PaymentEvent.PRE_AUTHORIZE) // not duing state change. In this event Payment still in the "NEW" state
         .and()
                 .withExternal().source(PaymentStatus.NEW) // from (source) "NEW" to "PRE_AUTH" (target) on event "PRE_AUTH_APPROVED"
@@ -62,5 +67,26 @@ public class StateMachineConfig extends StateMachineConfigurerAdapter<PaymentSta
         };
         config.withConfiguration().listener(adapter);
 
+    }
+    // invoked after event PRE_AUTHORIZE happen
+    public Action<PaymentStatus, PaymentEvent> preAuthAction() {
+        return stateContext -> {
+            log.info("PreAuth was called");
+            if (new Random().nextInt(10) < 8) {
+                log.info("approved");
+                stateContext.getStateMachine()
+                        .sendEvent(MessageBuilder
+                                .withPayload(PaymentEvent.PRE_AUTH_APPROVED)
+                                .setHeader(PaymentServiceImpl.PAYMENT_ID_HEADER, stateContext.getMessageHeader(PaymentServiceImpl.PAYMENT_ID_HEADER))
+                                .build());
+            } else {
+                log.info("declined, no credit");
+                stateContext.getStateMachine()
+                        .sendEvent(MessageBuilder
+                                .withPayload(PaymentEvent.PRE_AUTH_DECLINED)
+                                .setHeader(PaymentServiceImpl.PAYMENT_ID_HEADER, stateContext.getMessageHeader(PaymentServiceImpl.PAYMENT_ID_HEADER))
+                                .build());
+            }
+        };
     }
 }
