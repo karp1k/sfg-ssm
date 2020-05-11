@@ -13,6 +13,7 @@ import org.springframework.statemachine.config.StateMachineConfigurerAdapter;
 import org.springframework.statemachine.config.builders.StateMachineConfigurationConfigurer;
 import org.springframework.statemachine.config.builders.StateMachineStateConfigurer;
 import org.springframework.statemachine.config.builders.StateMachineTransitionConfigurer;
+import org.springframework.statemachine.guard.Guard;
 import org.springframework.statemachine.listener.StateMachineListener;
 import org.springframework.statemachine.listener.StateMachineListenerAdapter;
 import org.springframework.statemachine.state.State;
@@ -43,8 +44,10 @@ public class StateMachineConfig extends StateMachineConfigurerAdapter<PaymentSta
     public void configure(StateMachineTransitionConfigurer<PaymentStatus, PaymentEvent> transitions) throws Exception {
         transitions.withExternal()
                 .source(PaymentStatus.NEW) // from "NEW" state to "NEW" on event "PRE_AUTHORIZE"
-                .target(PaymentStatus.NEW).action(preAuthAction())
-                .event(PaymentEvent.PRE_AUTHORIZE) // not duing state change. In this event Payment still in the "NEW" state
+                .target(PaymentStatus.NEW)
+                // not doing state change. In this event Payment still in the "NEW" state
+                // guards works only on this step (only on event PRE_AUTHORIZE)
+                .event(PaymentEvent.PRE_AUTHORIZE).action(preAuthAction()).guard(paymentIdGuard())
         .and()
                 .withExternal().source(PaymentStatus.NEW) // from (source) "NEW" to "PRE_AUTH" (target) on event "PRE_AUTH_APPROVED"
                 .target(PaymentStatus.PRE_AUTH)
@@ -123,5 +126,9 @@ public class StateMachineConfig extends StateMachineConfigurerAdapter<PaymentSta
                                 .build());
             }
         };
+    }
+    // guard check that message with event contains payment_id in the message
+    public Guard<PaymentStatus, PaymentEvent> paymentIdGuard() {
+        return context -> context.getMessageHeader(PaymentServiceImpl.PAYMENT_ID_HEADER) != null;
     }
 }
