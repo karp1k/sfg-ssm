@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.statemachine.config.EnableStateMachineFactory;
 import org.springframework.statemachine.config.StateMachineConfigurerAdapter;
 import org.springframework.statemachine.config.builders.StateMachineStateConfigurer;
+import org.springframework.statemachine.config.builders.StateMachineTransitionConfigurer;
 
 import java.util.EnumSet;
 
@@ -27,5 +28,21 @@ public class StateMachineConfig extends StateMachineConfigurerAdapter<PaymentSta
                 .end(PaymentStatus.AUTH) // end state
                 .end(PaymentStatus.PRE_AUTH_ERROR) // end state
                 .end(PaymentStatus.AUTH_ERROR); // end state
+    }
+
+    @Override // transition config
+    public void configure(StateMachineTransitionConfigurer<PaymentStatus, PaymentEvent> transitions) throws Exception {
+        transitions.withExternal()
+                .source(PaymentStatus.NEW) // from "NEW" state to "NEW" on event "PRE_AUTHORIZE"
+                .target(PaymentStatus.NEW)
+                .event(PaymentEvent.PRE_AUTHORIZE) // not duing state change. In this event Payment still in the "NEW" state
+        .and()
+                .withExternal().source(PaymentStatus.NEW) // from (source) "NEW" to "PRE_AUTH" (target) on event "PRE_AUTH_APPROVED"
+                .target(PaymentStatus.PRE_AUTH)
+                .event(PaymentEvent.PRE_AUTH_APPROVED) // on event this event change state to "PRE_AUTH"
+        .and()
+                .withExternal().source(PaymentStatus.NEW) // from "NEW" to "PRE_AUTH_ERROR" on event "PRE_AUTH_DECLINED"
+                .target(PaymentStatus.PRE_AUTH_ERROR)
+                .event(PaymentEvent.PRE_AUTH_DECLINED);
     }
 }
