@@ -5,6 +5,8 @@ import guru.springframework.sfgssm.domain.PaymentEvent;
 import guru.springframework.sfgssm.domain.PaymentStatus;
 import guru.springframework.sfgssm.repositories.PaymentRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.messaging.Message;
+import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.statemachine.StateMachine;
 import org.springframework.statemachine.config.StateMachineFactory;
 import org.springframework.statemachine.support.DefaultStateMachineContext;
@@ -16,6 +18,8 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 @Service
 public class PaymentServiceImpl implements PaymentService {
+
+    public static final String PAYMENT_ID_HEADER  = "payment_id";
 
     private final PaymentRepository repository;
     private final StateMachineFactory<PaymentStatus, PaymentEvent> stateMachineFactory;
@@ -29,18 +33,21 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     public StateMachine<PaymentStatus, PaymentEvent> preAuth(Long paymentId) {
         StateMachine<PaymentStatus, PaymentEvent> sm = build(paymentId);
+        sendEvent(paymentId, sm, PaymentEvent.PRE_AUTHORIZE);
         return null;
     }
 
     @Override
     public StateMachine<PaymentStatus, PaymentEvent> authorizePayment(Long paymentId) {
         StateMachine<PaymentStatus, PaymentEvent> sm = build(paymentId);
+        sendEvent(paymentId, sm, PaymentEvent.AUTH_APPROVED);
         return null;
     }
 
     @Override
     public StateMachine<PaymentStatus, PaymentEvent> declineAuth(Long paymentId) {
         StateMachine<PaymentStatus, PaymentEvent> sm = build(paymentId);
+        sendEvent(paymentId, sm, PaymentEvent.AUTH_DECLINED);
         return null;
     }
 
@@ -56,5 +63,11 @@ public class PaymentServiceImpl implements PaymentService {
         });
         sm.start();
         return sm;
+    }
+
+    // send events to state machine with Message
+    private void sendEvent(Long paymentId, StateMachine<PaymentStatus, PaymentEvent> sm, PaymentEvent event) {
+        Message message = MessageBuilder.withPayload(event).setHeader(PAYMENT_ID_HEADER, paymentId).build();
+        sm.sendEvent(message); // sending not just event, but also rich message (with entity id)
     }
 }
